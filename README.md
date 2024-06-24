@@ -11,10 +11,7 @@ languages:
 ---
 # Azure AI Studio Private Endpoints Setup
 
-[![Deploy #1](https://raw.githubusercontent.com/Azure/azure-quickstart-templates/master/1-CONTRIBUTION-GUIDE/images/deploytoazure.svg?sanitize=true)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fctava-msft%2Faistudio-compute-instance-private%2Fmain%2Fprereq.azuredeploy.json)
-
-
-[![Deploy #2](https://raw.githubusercontent.com/Azure/azure-quickstart-templates/master/1-CONTRIBUTION-GUIDE/images/deploytoazure.svg?sanitize=true)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fctava-msft%2Faistudio-compute-instance-private%2Fmain%2Fazuredeploy.json)
+[![Deploy to Azure](https://raw.githubusercontent.com/Azure/azure-quickstart-templates/master/1-CONTRIBUTION-GUIDE/images/deploytoazure.svg?sanitize=true)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fctava-msft%2Faistudio-compute-instance-private%2Fmain%2Fazuredeploy.json)
 
 This template sets up Azure AI Studio with public access disabled. It also demonstrates how-to create compute resources in a private network.
 

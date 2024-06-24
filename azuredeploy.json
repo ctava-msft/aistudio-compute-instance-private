@@ -1,122 +1,419 @@
 {
-    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-    "contentVersion": "1.0.0.0",
-    "parameters": {
-        "workspaceName": {
-            "type": "string",
-            "metadata": {
-                "description": "Specifies the name of the Azure Machine Learning workspace to which compute instance will be deployed"
-            }
-        },
-        "computeName": {
-            "type": "string",
-            "metadata": {
-                "description": "Specifies the name of the Azure Machine Learning compute instance to be deployed"
-            }
-        },
-        "location": {
-            "defaultValue": "[resourceGroup().location]",
-            "type": "string",
-            "metadata": {
-                "description": "Location of the Azure Machine Learning workspace."
-            }
-        },
-        "vmSize": {
-            "defaultValue": "Standard_DS3_v2",
-            "type": "string",
-            "metadata": {
-                "description": "The VM size for compute instance"
-            }
-        },
-        "vnetResourceGroupName": {
-            "defaultValue": "",
-            "type": "string",
-            "metadata": {
-                "description": "Name of the resource group which holds the VNET to which you want to inject your compute instance in."
-            }
-        },
-        "vnetName": {
-            "defaultValue": "",
-            "type": "string",
-            "metadata": {
-                "description": "Name of the vnet which you want to inject your compute instance in."
-            }
-        },
-        "subnetName": {
-            "defaultValue": "",
-            "type": "string",
-            "metadata": {
-                "description": "Name of the subnet inside the VNET which you want to inject your compute instance in."
-            }
-        },
-        "tenantId": {
-            "defaultValue": "[subscription().tenantId]",
-            "type": "string",
-            "metadata": {
-                "description": "AAD tenant id of the user to which compute instance is assigned to"
-            }
-        },
-        "objectId": {
-            "type": "string",
-            "metadata": {
-                "description": "AAD object id of the user to which compute instance is assigned to"
-            }
-        },
-        "inlineCommand": {
-            "type": "string",
-            "defaultValue": "ls",
-            "metadata": {
-                "description": "inline command"
-            }
-        },
-        "creationScript.cmdArguments": {
-            "type": "string",
-            "defaultValue": "",
-            "metadata": {
-                "description": "Specifies the cmd arguments of the creation script in the storage volume of the Compute Instance."
-            }
-        },
-        "schedules": {
-            "type": "object",
-            "metadata": {
-                "description": "Specifies the schedule policies for the compute instance"
-            }
-        }
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.28.1.47646",
+      "templateHash": "7480269780041571611"
+    }
+  },
+  "parameters": {
+    "adminUsername": {
+      "type": "string"
     },
-    "variables": {
-        "subnet": {
-            "id": "[resourceId(parameters('vnetResourceGroupName'), 'Microsoft.Network/virtualNetworks/subnets', parameters('vnetName'), parameters('subnetName'))]"
-        }
+    "authenticationType": {
+      "type": "string",
+      "defaultValue": "password",
+      "allowedValues": [
+        "sshPublicKey",
+        "password"
+      ]
     },
-    "resources": [
-        {
-            "type": "Microsoft.MachineLearningServices/workspaces/computes",
-            "name": "[concat(parameters('workspaceName'), '/', parameters('computeName'))]",
-            "apiVersion": "2021-07-01",
-            "location": "[parameters('location')]",
+    "adminPasswordOrKey": {
+      "type": "securestring"
+    },
+    "applicationInsightsName": {
+      "type": "string",
+      "defaultValue": "[format('ai{0}', uniqueString(resourceGroup().id))]"
+    },
+    "computeName": {
+      "type": "string"
+    },
+    "keyVaultName": {
+      "type": "string",
+      "defaultValue": "[format('kv{0}', uniqueString(resourceGroup().id))]"
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]"
+    },
+    "objectId": {
+      "type": "string"
+    },
+    "securityType": {
+      "type": "string",
+      "defaultValue": "TrustedLaunch",
+      "allowedValues": [
+        "Standard",
+        "TrustedLaunch"
+      ]
+    },
+    "subnetName": {
+      "type": "string",
+      "defaultValue": ""
+    },
+    "storageAccountName": {
+      "type": "string",
+      "defaultValue": "[format('sa{0}', uniqueString(resourceGroup().id))]"
+    },
+    "tenantId": {
+      "type": "string",
+      "defaultValue": "[subscription().tenantId]"
+    },
+    "vmSize": {
+      "type": "string"
+    },
+    "vnetResourceGroupName": {
+      "type": "string",
+      "defaultValue": ""
+    },
+    "vnetName": {
+      "type": "string",
+      "defaultValue": ""
+    },
+    "ubuntuOSVersion": {
+      "type": "string",
+      "defaultValue": "Ubuntu-2204",
+      "allowedValues": [
+        "Ubuntu-2204"
+      ]
+    },
+    "uniqueSuffix": {
+      "type": "string"
+    },
+    "workspaceName": {
+      "type": "string"
+    }
+  },
+  "variables": {
+    "imageReference": {
+      "Ubuntu-2204": {
+        "publisher": "Canonical",
+        "offer": "0001-com-ubuntu-server-jammy",
+        "sku": "22_04-lts-gen2",
+        "version": "latest"
+      }
+    },
+    "publicIPAddressName": "[format('pip-{0}', parameters('uniqueSuffix'))]",
+    "maaTenantName": "GuestAttestation",
+    "maaEndpoint": "[substring('emptystring', 0, 0)]",
+    "networkInterfaceName": "[format('ni-{0}', parameters('uniqueSuffix'))]",
+    "networkSecurityGroupName": "[format('nsg-{0}', parameters('uniqueSuffix'))]",
+    "virtualNetworkName": "[format('vnet-{0}', parameters('uniqueSuffix'))]",
+    "subnetName_var": "[format('sb-{0}', parameters('uniqueSuffix'))]",
+    "vmName": "[format('vm-{0}', parameters('uniqueSuffix'))]",
+    "dnsLabelPrefix": "[toLower(format('{0}-{1}', variables('vmName'), uniqueString(resourceGroup().id)))]",
+    "extensionName": "GuestAttestation",
+    "extensionPublisher": "Microsoft.Azure.Security.LinuxAttestation",
+    "extensionVersion": "1.0",
+    "osDiskType": "Standard_LRS",
+    "subnetAddressPrefix": "10.1.0.0/24",
+    "addressPrefix": "10.1.0.0/16",
+    "linuxConfiguration": {
+      "disablePasswordAuthentication": true,
+      "ssh": {
+        "publicKeys": [
+          {
+            "path": "[format('/home/{0}/.ssh/authorized_keys', parameters('adminUsername'))]",
+            "keyData": "[parameters('adminPasswordOrKey')]"
+          }
+        ]
+      }
+    },
+    "securityProfileJson": {
+      "uefiSettings": {
+        "secureBootEnabled": true,
+        "vTpmEnabled": true
+      },
+      "securityType": "[parameters('securityType')]"
+    },
+    "subnet": {
+      "id": "[resourceId(parameters('vnetResourceGroupName'), 'Microsoft.Network/virtualNetworks/subnets', parameters('vnetName'), parameters('subnetName'))]"
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "apiVersion": "2021-04-01",
+      "name": "[parameters('storageAccountName')]",
+      "location": "[parameters('location')]",
+      "sku": {
+        "name": "Standard_LRS"
+      },
+      "kind": "StorageV2",
+      "properties": {
+        "encryption": {
+          "services": {
+            "blob": {
+              "enabled": true
+            },
+            "file": {
+              "enabled": true
+            }
+          },
+          "keySource": "Microsoft.Storage"
+        },
+        "supportsHttpsTrafficOnly": true
+      }
+    },
+    {
+      "type": "Microsoft.KeyVault/vaults",
+      "apiVersion": "2019-09-01",
+      "name": "[parameters('keyVaultName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "tenantId": "[parameters('tenantId')]",
+        "sku": {
+          "name": "standard",
+          "family": "A"
+        },
+        "accessPolicies": []
+      }
+    },
+    {
+      "type": "Microsoft.Insights/components",
+      "apiVersion": "2020-02-02",
+      "name": "[parameters('applicationInsightsName')]",
+      "location": "[parameters('location')]",
+      "kind": "web",
+      "properties": {
+        "Application_Type": "web"
+      }
+    },
+    {
+      "type": "Microsoft.MachineLearningServices/workspaces",
+      "apiVersion": "2020-03-01",
+      "name": "[parameters('workspaceName')]",
+      "location": "[parameters('location')]",
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "properties": {
+        "friendlyName": "[parameters('workspaceName')]",
+        "storageAccount": "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]",
+        "keyVault": "[resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName'))]",
+        "applicationInsights": "[resourceId('Microsoft.Insights/components', parameters('applicationInsightsName'))]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Insights/components', parameters('applicationInsightsName'))]",
+        "[resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName'))]",
+        "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.MachineLearningServices/workspaces/computes",
+      "apiVersion": "2021-07-01",
+      "name": "[format('{0}/{1}', parameters('workspaceName'), format('{0}', parameters('computeName')))]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "computeType": "ComputeInstance",
+        "properties": {
+          "vmSize": "[parameters('vmSize')]",
+          "subnet": "[if(and(and(not(empty(parameters('vnetResourceGroupName'))), not(empty(parameters('vnetName')))), not(empty(parameters('subnetName')))), variables('subnet'), json('null'))]",
+          "personalComputeInstanceSettings": {
+            "assignedUser": {
+              "objectId": "[parameters('objectId')]",
+              "tenantId": "[parameters('tenantId')]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.MachineLearningServices/workspaces', parameters('workspaceName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/networkInterfaces",
+      "apiVersion": "2023-09-01",
+      "name": "[variables('networkInterfaceName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
             "properties": {
-                "computeType": "ComputeInstance",
-                "properties": {
-                    "vmSize": "[parameters('vmSize')]",
-                    "subnet": "[if(and(not(empty(parameters('vnetResourceGroupName'))),not(empty(parameters('vnetName'))),not(empty(parameters('subnetName')))), variables('subnet'), json('null'))]",
-                    "personalComputeInstanceSettings": {
-                        "assignedUser": {
-                            "objectId": "[parameters('objectId')]",
-                            "tenantId": "[parameters('tenantId')]"
-                        }
-                    },
-                    "setupScripts": {
-                        "scripts": {
-                            "creationScript": {
-                                "scriptSource": "inline",
-                                "scriptData": "[base64(parameters('inlineCommand'))]",
-                                "scriptArguments": "[parameters('creationScript.cmdArguments')]"
-                            }
-                        }
-                    },
-                    "schedules": "[parameters('schedules')]"
-                }
+              "subnet": {
+                "id": "[reference(resourceId('Microsoft.Network/virtualNetworks', variables('virtualNetworkName')), '2023-09-01').subnets[0].id]"
+              },
+              "privateIPAllocationMethod": "Dynamic",
+              "publicIPAddress": {
+                "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIPAddressName'))]"
+              }
             }
+          }
+        ],
+        "networkSecurityGroup": {
+          "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('networkSecurityGroupName'))]"
         }
-    ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkSecurityGroups', variables('networkSecurityGroupName'))]",
+        "[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIPAddressName'))]",
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('virtualNetworkName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/networkSecurityGroups",
+      "apiVersion": "2023-09-01",
+      "name": "[variables('networkSecurityGroupName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "securityRules": [
+          {
+            "name": "SSH",
+            "properties": {
+              "priority": 1000,
+              "protocol": "Tcp",
+              "access": "Allow",
+              "direction": "Inbound",
+              "sourceAddressPrefix": "*",
+              "sourcePortRange": "*",
+              "destinationAddressPrefix": "*",
+              "destinationPortRange": "22"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks",
+      "apiVersion": "2023-09-01",
+      "name": "[variables('virtualNetworkName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "[variables('addressPrefix')]"
+          ]
+        },
+        "subnets": [
+          {
+            "name": "[variables('subnetName_var')]",
+            "properties": {
+              "addressPrefix": "[variables('subnetAddressPrefix')]",
+              "privateEndpointNetworkPolicies": "Enabled",
+              "privateLinkServiceNetworkPolicies": "Enabled"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Network/publicIPAddresses",
+      "apiVersion": "2023-09-01",
+      "name": "[variables('publicIPAddressName')]",
+      "location": "[parameters('location')]",
+      "sku": {
+        "name": "Basic"
+      },
+      "properties": {
+        "publicIPAllocationMethod": "Dynamic",
+        "publicIPAddressVersion": "IPv4",
+        "dnsSettings": {
+          "domainNameLabel": "[variables('dnsLabelPrefix')]"
+        },
+        "idleTimeoutInMinutes": 4
+      }
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines",
+      "apiVersion": "2023-09-01",
+      "name": "[variables('vmName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[parameters('vmSize')]"
+        },
+        "storageProfile": {
+          "osDisk": {
+            "createOption": "FromImage",
+            "managedDisk": {
+              "storageAccountType": "[variables('osDiskType')]"
+            }
+          },
+          "imageReference": "[variables('imageReference')[parameters('ubuntuOSVersion')]]"
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('networkInterfaceName'))]"
+            }
+          ]
+        },
+        "osProfile": {
+          "computerName": "[variables('vmName')]",
+          "adminUsername": "[parameters('adminUsername')]",
+          "adminPassword": "[parameters('adminPasswordOrKey')]",
+          "linuxConfiguration": "[if(equals(parameters('authenticationType'), 'password'), null(), variables('linuxConfiguration'))]"
+        },
+        "securityProfile": "[if(equals(parameters('securityType'), 'TrustedLaunch'), variables('securityProfileJson'), null())]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkInterfaces', variables('networkInterfaceName'))]",
+        "[resourceId('Microsoft.Network/networkSecurityGroups', variables('networkSecurityGroupName'))]",
+        "[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIPAddressName'))]",
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('virtualNetworkName'))]"
+      ]
+    },
+    {
+      "condition": "[and(and(equals(parameters('securityType'), 'TrustedLaunch'), variables('securityProfileJson').uefiSettings.secureBootEnabled), variables('securityProfileJson').uefiSettings.vTpmEnabled)]",
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "apiVersion": "2023-09-01",
+      "name": "[format('{0}/{1}', variables('vmName'), format('{0}', variables('extensionName')))]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "publisher": "[variables('extensionPublisher')]",
+        "type": "[variables('extensionName')]",
+        "typeHandlerVersion": "[variables('extensionVersion')]",
+        "autoUpgradeMinorVersion": true,
+        "enableAutomaticUpgrade": true,
+        "settings": {
+          "AttestationConfig": {
+            "MaaSettings": {
+              "maaEndpoint": "[variables('maaEndpoint')]",
+              "maaTenantName": "[variables('maaTenantName')]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Compute/virtualMachines', variables('vmName'))]"
+      ]
+    }
+  ],
+  "outputs": {
+    "computeId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.MachineLearningServices/workspaces/computes', parameters('workspaceName'), format('{0}', parameters('computeName')))]"
+    },
+    "adminUsername": {
+      "type": "string",
+      "value": "[parameters('adminUsername')]"
+    },
+    "computeNodeId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.Compute/virtualMachines', variables('vmName'))]"
+    },
+    "hostname": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Network/publicIPAddresses', variables('publicIPAddressName')), '2023-09-01').dnsSettings.fqdn]"
+    },
+    "virtualNetworkName": {
+      "type": "string",
+      "value": "[variables('virtualNetworkName')]"
+    },
+    "subnetId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Network/virtualNetworks', variables('virtualNetworkName')), '2023-09-01').subnets[0].id]"
+    },
+    "networkInterfaceId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.Network/networkInterfaces', variables('networkInterfaceName'))]"
+    },
+    "sshCommand": {
+      "type": "string",
+      "value": "[format('ssh {0}@{1}', parameters('adminUsername'), reference(resourceId('Microsoft.Network/publicIPAddresses', variables('publicIPAddressName')), '2023-09-01').dnsSettings.fqdn)]"
+    }
+  }
 }
