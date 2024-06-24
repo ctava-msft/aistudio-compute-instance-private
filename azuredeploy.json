@@ -33,6 +33,10 @@
       ]
     },
     "vmSize": {
+      "defaultValue": "Standard_DC1s_v2",
+      "type": "string"
+    },
+    "vmComputeSize": {
       "defaultValue": "STANDARD_D2",
       "type": "string"
     },
@@ -178,7 +182,7 @@
       "properties": {
         "computeType": "ComputeInstance",
         "properties": {
-          "vmSize": "[parameters('vmSize')]",
+          "vmSize": "[parameters('vmComputeSize')]",
           "subnet": "[if(and(and(not(empty(variables('vnetResourceGroupName'))), not(empty(variables('vnetName')))), not(empty(variables('subnetName')))), variables('subnet'), json('null'))]"
         }
       },
