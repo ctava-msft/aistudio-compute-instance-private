@@ -163,10 +163,13 @@
       },
       "kind": "hub",
       "properties": {
+        "applicationInsights": "[resourceId('Microsoft.Insights/components', variables('applicationInsightsName'))]",
         "friendlyName": "[variables('workspaceName')]",
-        "storageAccount": "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]",
         "keyVault": "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]",
-        "applicationInsights": "[resourceId('Microsoft.Insights/components', variables('applicationInsightsName'))]"
+        "storageAccount": "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]",
+        "managedNetwork": {
+          "isolation_mode": "IsolationMode.ALLOW_INTERNET_OUTBOUND"
+        }
       },
       "dependsOn": [
         "[resourceId('Microsoft.Insights/components', variables('applicationInsightsName'))]",
@@ -182,8 +185,8 @@
       "properties": {
         "computeType": "ComputeInstance",
         "properties": {
-          "vmSize": "[parameters('vmComputeSize')]",
-          "subnet": "[if(and(and(not(empty(variables('vnetResourceGroupName'))), not(empty(variables('vnetName')))), not(empty(variables('subnetName')))), variables('subnet'), json('null'))]"
+          "vmSize": "[parameters('vmComputeSize')]"
+          //"subnet": "[if(and(and(not(empty(variables('vnetResourceGroupName'))), not(empty(variables('vnetName')))), not(empty(variables('subnetName')))), variables('subnet'), json('null'))]"
         }
       },
       "dependsOn": [
