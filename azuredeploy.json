@@ -33,7 +33,7 @@
       ]
     },
     "vmSize": {
-      "defaultValue": "Standard_DC1s_v2",
+      "defaultValue": "STANDARD_D2",
       "type": "string"
     },
     "ubuntuOSVersion": {
@@ -157,6 +157,7 @@
       "identity": {
         "type": "SystemAssigned"
       },
+      "kind": "hub",
       "properties": {
         "friendlyName": "[variables('workspaceName')]",
         "storageAccount": "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]",
